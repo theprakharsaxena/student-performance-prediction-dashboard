@@ -53,9 +53,13 @@ history = model.fit(
     verbose=1
 )
 
-# Save Model
+# Save Model & Weights
 model.save('/Users/prakharsaxena/Downloads/untitled folder 23/student_performance_model.keras')
 print("Model saved as student_performance_model.keras")
+
+weights = [layer.get_weights() for layer in model.layers]
+joblib.dump(weights, '/Users/prakharsaxena/Downloads/untitled folder 23/model_weights.pkl')
+print("Model weights saved as model_weights.pkl for lightweight NumPy inference")
 
 # Evaluate Model
 predictions = model.predict(X_test_scaled).flatten()

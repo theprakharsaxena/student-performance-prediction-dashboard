@@ -42,19 +42,45 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Load Trained Model and Scaler
+# Load Trained Model, Weights, and Scaler
 @st.cache_resource
 def load_artifacts():
-    model = load_model("student_performance_model.keras")
+    model = None
+    try:
+        from tensorflow.keras.models import load_model
+        model = load_model("student_performance_model.keras")
+    except Exception:
+        model = None
+
+    weights = joblib.load("model_weights.pkl")
     scaler = joblib.load("scaler.pkl")
-    return model, scaler
+    return model, weights, scaler
 
 @st.cache_data
 def load_dataset():
     return pd.read_csv("student_performance.csv")
 
+def predict_ann(scaled_input, model, weights):
+    if model is not None:
+        try:
+            raw = model.predict(scaled_input, verbose=0)
+            return float(raw[0][0])
+        except Exception:
+            pass
+            
+    x = np.array(scaled_input)
+    # Layer 1: Dense(32, ReLU)
+    a1 = np.maximum(0, np.dot(x, weights[0][0]) + weights[0][1])
+    # Layer 2: Dense(16, ReLU)
+    a2 = np.maximum(0, np.dot(a1, weights[1][0]) + weights[1][1])
+    # Layer 3: Dense(8, ReLU)
+    a3 = np.maximum(0, np.dot(a2, weights[2][0]) + weights[2][1])
+    # Layer 4: Dense(1, Linear)
+    out = np.dot(a3, weights[3][0]) + weights[3][1]
+    return float(out[0][0])
+
 try:
-    model, scaler = load_artifacts()
+    model, weights, scaler = load_artifacts()
     df = load_dataset()
     artifacts_loaded = True
 except Exception as e:
@@ -134,8 +160,8 @@ with tab1:
             ]], columns=['Study_Hours_Per_Week', 'Attendance_Percentage', 'Previous_Exam_Score', 'Sleep_Hours_Per_Night', 'Practice_Tests_Taken', 'Tutoring_Sessions'])
             
             scaled_features = scaler.transform(input_features)
-            raw_prediction = model.predict(scaled_features)
-            predicted_score = float(np.clip(raw_prediction[0][0], 0.0, 100.0))
+            raw_prediction = predict_ann(scaled_features, model, weights)
+            predicted_score = float(np.clip(raw_prediction, 0.0, 100.0))
             
             st.success("✅ Prediction Completed!")
             
